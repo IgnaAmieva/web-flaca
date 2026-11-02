@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { useSigWriter } from '@/hooks/useSigWriter';
 import { usePaintIn } from '@/hooks/usePaintIn';
+import SIGPATH from '@/data/firma.json';
 
 interface HeroProps {
   sigImg: HTMLImageElement | null;
@@ -10,26 +10,99 @@ interface HeroProps {
 
 export default function Hero({ sigImg, started }: HeroProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawnRef = useRef(false);
   const [signed, setSigned] = useState(false);
   const [lit, setLit] = useState(false);
   const paintIn = usePaintIn();
 
-  const { full } = useSigWriter(canvasRef, sigImg);
+  // Draw full signature statically (no animation) once sigImg is available
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv || !sigImg || drawnRef.current) return;
+    drawnRef.current = true;
+
+    const d = Math.min(2, devicePixelRatio || 1);
+    const W = Math.round(cv.clientWidth * d);
+    const H = Math.round(W * 495 / 1995);
+    cv.width = W;
+    cv.height = H;
+
+    const mask = document.createElement('canvas');
+    mask.width = W;
+    mask.height = H;
+    const m = mask.getContext('2d')!;
+    m.lineCap = m.lineJoin = 'round';
+    m.strokeStyle = '#000';
+    m.lineWidth = SIGPATH.thick * W * 2.6;
+
+    for (const s of SIGPATH.strokes) {
+      m.beginPath();
+      m.moveTo(s[0][0] * W, s[0][1] * H);
+      for (let i = 1; i < s.length; i++) m.lineTo(s[i][0] * W, s[i][1] * H);
+      m.stroke();
+    }
+
+    const ctx = cv.getContext('2d')!;
+    ctx.drawImage(sigImg, 0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = '#1f1c1a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(mask, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }, [sigImg]);
+
+  // Handle resize — redraw static signature
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv || !sigImg) return;
+    const handler = () => {
+      if (!drawnRef.current) return;
+      const d = Math.min(2, devicePixelRatio || 1);
+      const W = Math.round(cv.clientWidth * d);
+      const H = Math.round(W * 495 / 1995);
+      cv.width = W;
+      cv.height = H;
+
+      const mask = document.createElement('canvas');
+      mask.width = W;
+      mask.height = H;
+      const m = mask.getContext('2d')!;
+      m.lineCap = m.lineJoin = 'round';
+      m.strokeStyle = '#000';
+      m.lineWidth = SIGPATH.thick * W * 2.6;
+      for (const s of SIGPATH.strokes) {
+        m.beginPath();
+        m.moveTo(s[0][0] * W, s[0][1] * H);
+        for (let i = 1; i < s.length; i++) m.lineTo(s[i][0] * W, s[i][1] * H);
+        m.stroke();
+      }
+      const ctx = cv.getContext('2d')!;
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(sigImg, 0, 0, W, H);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = '#1f1c1a';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(mask, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+    };
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [sigImg]);
 
   const startHero = useCallback(() => {
     setSigned(true);
-    full();
     setTimeout(() => {
       setLit(true);
       document.querySelectorAll<HTMLElement>('.hero .paintable').forEach((pc, i) => {
         setTimeout(() => paintIn(pc, 1400), i * 260);
       });
     }, 200);
-  }, [full, paintIn]);
+  }, [paintIn]);
 
   useEffect(() => {
     if (started) {
-      // Defer to avoid synchronous setState in effect
       const id = requestAnimationFrame(() => startHero());
       return () => cancelAnimationFrame(id);
     }

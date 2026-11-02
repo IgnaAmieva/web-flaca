@@ -11,6 +11,7 @@ export default function Intro({ sigImg, onDone }: IntroProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const introRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef(false);
+  const animatedRef = useRef(false);
   const [signed, setSigned] = useState(false);
   const [flyClass, setFlyClass] = useState('');
 
@@ -32,15 +33,21 @@ export default function Intro({ sigImg, onDone }: IntroProps) {
     const c = canvasRef.current!;
     const s = to.width / from.width;
     c.style.transformOrigin = '0 0';
+    c.style.willChange = 'transform';
     c.style.transition = 'transform 1.1s cubic-bezier(.65,0,.25,1)';
     setFlyClass('fly');
+
+    const onEnd = () => {
+      c.removeEventListener('transitionend', onEnd);
+      c.style.willChange = 'auto';
+      setFlyClass('gone');
+      onDone();
+    };
+    c.addEventListener('transitionend', onEnd);
+
     requestAnimationFrame(() => {
       c.style.transform = `translate(${to.left - from.left}px,${to.top - from.top}px) scale(${s})`;
     });
-    setTimeout(() => {
-      setFlyClass('gone');
-      onDone();
-    }, 1150);
   }, [onDone]);
 
   const { run, full } = useSigWriter(canvasRef, sigImg, {
@@ -59,12 +66,13 @@ export default function Intro({ sigImg, onDone }: IntroProps) {
   }, [full, fly]);
 
   useEffect(() => {
-    if (!sigImg) return;
+    if (!sigImg || animatedRef.current) return;
+    animatedRef.current = true;
+
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo(0, 0);
     if (reduce) {
       full();
-      // Use setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
         setFlyClass('gone');
         onDone();
