@@ -26,7 +26,7 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://marielagonzalez-arte.vercel.app'),
+  metadataBase: new URL('https://web-flaca.vercel.app'),
   title: 'Mariela Gonzalez · Pintura abstracta',
   description: 'Obra abstracta de Mariela Gonzalez, artista plástica de Tunuyán, Mendoza. Explorá sus pinturas, consultá disponibilidad y encargá una obra para tu espacio.',
   openGraph: {
@@ -71,7 +71,7 @@ export default function RootLayout({
                 addressCountry: 'AR',
               },
               sameAs: ['https://www.instagram.com/marielagonzalez_arte/'],
-              url: 'https://marielagonzalez-arte.vercel.app',
+              url: 'https://web-flaca.vercel.app',
             }),
           }}
         />
